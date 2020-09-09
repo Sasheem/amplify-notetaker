@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { API, graphqlOperation } from 'aws-amplify';
 import { withAuthenticator } from 'aws-amplify-react';
-import { createNote, deleteNote } from './graphql/mutations';
+import { createNote, deleteNote, updateNote } from './graphql/mutations';
 import { listNotes } from './graphql/queries';
 
 import '@aws-amplify/ui/dist/style.css';
 
 function App() {
+	const [id, setId] = useState('');
 	const [note, setNote] = useState('');
 	const [notes, setNotes] = useState([]);
 
@@ -14,11 +15,33 @@ function App() {
 
 	const handleSubmitNote = async (event) => {
 		event.preventDefault();
-		const input = { note };
-		const result = await API.graphql(graphqlOperation(createNote, { input }));
-		const newNote = result.data.createNote;
-		setNotes([...notes, newNote]);
+		// check for existing note, if yes update it
+		if (hasExistingNote()) {
+			handleUpdateNote();
+			console.log('note updated!');
+		} else {
+			const input = { note };
+			const result = await API.graphql(graphqlOperation(createNote, { input }));
+			const newNote = result.data.createNote;
+			setNotes([...notes, newNote]);
+			setNote('');
+			setId('');
+		}
+	};
+
+	const handleUpdateNote = async () => {
+		const input = { id, note };
+		const result = await API.graphql(graphqlOperation(updateNote, { input }));
+		const updatedNote = result.data.updateNote;
+		const index = notes.findIndex((note) => note.id === updatedNote.id);
+		const updatedNotes = [
+			...notes.slice(0, index),
+			updatedNote,
+			...notes.slice(index + 1),
+		];
+		setNotes(updatedNotes);
 		setNote('');
+		setId('');
 	};
 
 	const handleDeleteNote = async (noteId) => {
@@ -27,6 +50,11 @@ function App() {
 		const deletedNoteId = result.data.deleteNote.id;
 		const updatedNotes = notes.filter((note) => note.id !== deletedNoteId);
 		setNotes(updatedNotes);
+	};
+
+	const handleSetNote = ({ note, id }) => {
+		setNote(note);
+		setId(id);
 	};
 
 	// useEffect behaves like componentDidMount + componentDidUnmount + componentDidUpdate all combined
@@ -38,6 +66,20 @@ function App() {
 
 		fetchNotes();
 	}, []);
+
+	/**
+	 * helper function
+	 * returns boolean if index is valid and exists in notes state
+	 */
+	const hasExistingNote = () => {
+		if (id) {
+			// check if id is valid
+			// findIndex returns positive value if item is found, returns -1 OW
+			const isNote = notes.findIndex((note) => note.id === id) > -1;
+			return isNote;
+		}
+		return false;
+	};
 
 	return (
 		<div className='flex flex-column items-center justify-center pa3 bg-washed-red'>
@@ -52,7 +94,7 @@ function App() {
 					placeholder='Write your note'
 				/>
 				<button type='submit' className='pa2 f4'>
-					Add Note
+					{id ? 'Update Note' : 'Add Note'}
 				</button>
 			</form>
 
@@ -60,7 +102,9 @@ function App() {
 			<div>
 				{notes.map((item) => (
 					<div key={item.id} className='flex items-center'>
-						<li className='list pa1 f3'>{item.note}</li>
+						<li onClick={() => handleSetNote(item)} className='list pa1 f3'>
+							{item.note}
+						</li>
 						<button
 							onClick={() => handleDeleteNote(item.id)}
 							className='bg-transparent bn f4'
