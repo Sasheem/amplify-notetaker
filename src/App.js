@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API, graphqlOperation } from 'aws-amplify';
 import { withAuthenticator } from 'aws-amplify-react';
-import { createNote } from './graphql/mutations';
+import { createNote, deleteNote } from './graphql/mutations';
 import { listNotes } from './graphql/queries';
 
 import '@aws-amplify/ui/dist/style.css';
@@ -10,15 +10,23 @@ function App() {
 	const [note, setNote] = useState('');
 	const [notes, setNotes] = useState([]);
 
-	const handleNoteChange = (event) => setNote(event.target.value);
+	const handleChangeNote = (event) => setNote(event.target.value);
 
-	const handleNoteSubmit = async (event) => {
+	const handleSubmitNote = async (event) => {
 		event.preventDefault();
 		const input = { note };
 		const result = await API.graphql(graphqlOperation(createNote, { input }));
 		const newNote = result.data.createNote;
 		setNotes([...notes, newNote]);
 		setNote('');
+	};
+
+	const handleDeleteNote = async (noteId) => {
+		const input = { id: noteId };
+		const result = await API.graphql(graphqlOperation(deleteNote, { input }));
+		const deletedNoteId = result.data.deleteNote.id;
+		const updatedNotes = notes.filter((note) => note.id !== deletedNoteId);
+		setNotes(updatedNotes);
 	};
 
 	// useEffect behaves like componentDidMount + componentDidUnmount + componentDidUpdate all combined
@@ -35,11 +43,11 @@ function App() {
 		<div className='flex flex-column items-center justify-center pa3 bg-washed-red'>
 			<h1 className='code f2-l'>Amplify Notetaker</h1>
 			{/* Note Form */}
-			<form onSubmit={handleNoteSubmit} className='mb3'>
+			<form onSubmit={handleSubmitNote} className='mb3'>
 				<input
 					type='text'
 					className='pa2 f4'
-					onChange={handleNoteChange}
+					onChange={handleChangeNote}
 					value={note}
 					placeholder='Write your note'
 				/>
@@ -53,7 +61,10 @@ function App() {
 				{notes.map((item) => (
 					<div key={item.id} className='flex items-center'>
 						<li className='list pa1 f3'>{item.note}</li>
-						<button className='bg-transparent bn f4'>
+						<button
+							onClick={() => handleDeleteNote(item.id)}
+							className='bg-transparent bn f4'
+						>
 							<span>&times;</span>
 						</button>
 					</div>
