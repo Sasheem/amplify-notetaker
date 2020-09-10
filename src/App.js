@@ -3,6 +3,7 @@ import { API, graphqlOperation } from 'aws-amplify';
 import { withAuthenticator } from 'aws-amplify-react';
 import { createNote, deleteNote, updateNote } from './graphql/mutations';
 import { listNotes } from './graphql/queries';
+import { onCreateNote } from './graphql/subscriptions';
 
 import '@aws-amplify/ui/dist/style.css';
 
@@ -13,7 +14,7 @@ function App() {
 
 	const handleChangeNote = (event) => setNote(event.target.value);
 
-	const handleSubmitNote = async (event) => {
+	const handleAddNote = async (event) => {
 		event.preventDefault();
 		// check for existing note, if yes update it
 		if (hasExistingNote()) {
@@ -21,11 +22,11 @@ function App() {
 			console.log('note updated!');
 		} else {
 			const input = { note };
-			const result = await API.graphql(graphqlOperation(createNote, { input }));
-			const newNote = result.data.createNote;
-			setNotes([...notes, newNote]);
+			await API.graphql(graphqlOperation(createNote, { input }));
+			// const newNote = result.data.createNote;
+			// setNotes([...notes, newNote]);
 			setNote('');
-			setId('');
+			// setId('');
 		}
 	};
 
@@ -57,15 +58,45 @@ function App() {
 		setId(id);
 	};
 
-	// useEffect behaves like componentDidMount + componentDidUnmount + componentDidUpdate all combined
+	// fetch data
 	useEffect(() => {
-		async function fetchNotes() {
-			const result = await API.graphql(graphqlOperation(listNotes));
-			setNotes(result.data.listNotes.items);
-		}
+		// async function fetchNotes() {
+		// 	const result = await API.graphql(graphqlOperation(listNotes));
+		// 	setNotes(result.data.listNotes.items);
+		// }
 
-		fetchNotes();
+		// fetchNotes();
+		getNotes();
 	}, []);
+
+	// onCreateNote Subscription
+	useEffect(() => {
+		const onCreateSubscription = API.graphql(
+			graphqlOperation(onCreateNote)
+		).subscribe({
+			next: (noteData) => {
+				const newNote = noteData.value.data.onCreateNote;
+				const prevNotes = notes.filter((note) => note.id !== newNote.id);
+				console.log(prevNotes);
+				setNotes([...prevNotes, newNote]);
+				console.log(notes);
+			},
+		});
+
+		return () => {
+			if (onCreateSubscription) {
+				onCreateSubscription.unsubscribe();
+			}
+		};
+	}, [notes]);
+
+	/**
+	 * helper function
+	 */
+	const getNotes = async () => {
+		const result = await API.graphql(graphqlOperation(listNotes));
+		setNotes(result.data.listNotes.items);
+	};
 
 	/**
 	 * helper function
@@ -85,7 +116,7 @@ function App() {
 		<div className='flex flex-column items-center justify-center pa3 bg-washed-red'>
 			<h1 className='code f2-l'>Amplify Notetaker</h1>
 			{/* Note Form */}
-			<form onSubmit={handleSubmitNote} className='mb3'>
+			<form onSubmit={handleAddNote} className='mb3'>
 				<input
 					type='text'
 					className='pa2 f4'
