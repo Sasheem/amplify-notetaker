@@ -54,7 +54,7 @@ const App = () => {
 	// fetch data
 	useEffect(() => {
 		getNotes();
-	}, []);
+	}, [notes]);
 
 	// onCreateNote Subscription - Listener
 	useEffect(() => {
