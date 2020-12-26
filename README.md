@@ -1,5 +1,10 @@
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Dev Stack
+<ul>
+    <li>React</li>
+    <li>AWS Amplify</li>
+</ul>
 ## Available Scripts
 
 In the project directory, you can run:
